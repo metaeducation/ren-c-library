@@ -7,7 +7,7 @@
 //=////////////////////////////////////////////////////////////////////////=//
 //
 // Copyright 2014 Atronix Engineering, Inc.
-// Copyright 2014-2017 Ren-C Open Source Contributors
+// Copyright 2014-2025 Ren-C Open Source Contributors
 // REBOL is a trademark of REBOL Technologies
 //
 // See README.md and CREDITS.md for more information.
@@ -28,38 +28,40 @@
 // Meta information in singular->misc.meta
 //
 
-typedef Raw_Array REBLIB;
+typedef Array Library;
 
-extern REBTYP *EG_Library_Type;
+typedef void* FileDescriptor;
 
-inline static bool IS_LIBRARY(Cell(const*) v) {  // Note: QUOTED! doesn't count
-    return IS_CUSTOM(v) and CELL_CUSTOM_TYPE(v) == EG_Library_Type;
+INLINE FileDescriptor Library_Fd(const Library *lib)
+  { return lib->link.p; }
+
+INLINE const Element* Library_File(const Library *lib) {
+    return c_cast(Element*, Stub_Cell(lib));
 }
 
-inline static void *LIB_FD(REBLIB *lib)
-  { return lib->link.fd; }  // (F)ile (D)escriptor
+INLINE bool Is_Library_Closed(const Library* lib)
+  { return lib->link.p == nullptr; }
 
-inline static bool IS_LIB_CLOSED(REBLIB *lib)
-  { return lib->link.fd == nullptr; }
-
-inline static REBLIB *VAL_LIBRARY(noquote(Cell(const*)) v) {
-    assert(CELL_CUSTOM_TYPE(v) == EG_Library_Type);
-    return ARR(VAL_NODE1(v));
+INLINE Library* Cell_Library(const Cell* v) {
+    assert(Is_Library(v));
+    return cast(Array*, CELL_NODE1(v));
 }
 
-
-inline static void *VAL_LIBRARY_FD(noquote(Cell(const*)) v) {
-    assert(CELL_CUSTOM_TYPE(v) == EG_Library_Type);
-    return LIB_FD(VAL_LIBRARY(v));
-}
+#define Cell_Library_FD(v) \
+    Library_Fd(Cell_Library(v))
 
 
-// !!! These functions are currently statically linked to by the FFI extension
-// which should probably be finding a way to do this through the libRebol API
-// instead.  That could avoid the static linking--but it would require the
-// library to give back HANDLE! or otherwise pointers that could be used to
-// call the C functions.
-//
-extern void *Open_Library(const REBVAL *path);
-extern void Close_Library(void *dll);
-extern CFUNC *Find_Function(void *dll, const char *funcname);
+// !!! Extensions not scanned for functions to make include files.  Review
+
+extern Option(Error*) Trap_Open_File_Descriptor_For_Library(
+    Sink(FileDescriptor),
+    const Element* path
+);
+
+extern Option(Error*) Trap_Close_Library(Library* lib);
+
+extern Option(Error*) Trap_Find_Function_In_Library(
+    Sink(CFunction*) cfunc,
+    const Library* lib,
+    const char* funcname
+);

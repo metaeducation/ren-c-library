@@ -1,21 +1,24 @@
-REBOL []
-
-name: 'Library
-source: %library/mod-library.c
-includes: [
-    %prep/extensions/library
+REBOL [
+    Name: Library
+    Notes: "See %extensions/README.md for the format and fields of this file"
 ]
 
+use-librebol: 'no
+
+includes: []
+
+sources: %mod-library.c
+
 depends: compose [
-    (switch system-config/os-base [
+    (switch platform-config.os-base [
         'Windows [
             spread [
-                [%library/library-windows.c]
+                [%library-windows.c]
             ]
         ]
     ] else [
         spread [
-            [%library/library-posix.c]
+            [%library-posix.c]
         ]
     ])
 ]

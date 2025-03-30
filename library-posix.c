@@ -7,7 +7,7 @@
 //=////////////////////////////////////////////////////////////////////////=//
 //
 // Copyright 2012 REBOL Technologies
-// Copyright 2012-2017 Ren-C Open Source Contributors
+// Copyright 2012-2025 Ren-C Open Source Contributors
 // REBOL is a trademark of REBOL Technologies
 //
 // See README.md and CREDITS.md for more information.
@@ -23,6 +23,12 @@
 // This is for support of the LIBRARY! type from the host on
 // systems that support 'dlopen'.
 //
+//=//// NOTES /////////////////////////////////////////////////////////////=//
+//
+// A. While thread safety of dlerror() is implementation-defined :-/ it does
+//    appear that all errors coming from dlerror(), dlopen(), dlsym() will
+//    be communicated via dlerror().
+
 
 #ifndef __cplusplus
     // See feature_test_macros(7)
@@ -43,79 +49,91 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "sys-core.h"
+#include "tmp-mod-library.h"
 
+#include "sys-library.h"
 
-#ifndef NO_DL_LIB
-    #include <dlfcn.h>
-#endif
+#include <dlfcn.h>
 
 
 //
-//  Open_Library: C
+//  Trap_Open_File_Descriptor_For_Library: C
 //
 // Load a DLL library and return the handle to it.
 // If zero is returned, error indicates the reason.
 //
-void *Open_Library(const REBVAL *path)
-{
-  #ifdef NO_DL_LIB
-    return nullptr;
-  #else
-    // Usually you want to fully resolve local paths before making OS calls.
-    // But the dlopen() function searches library directories by default.
-    // So if %foo is passed in, you don't want to prepend the current dir to
-    // make it absolute, because it will *only* look there.
-    //
-    // So don't use FILE-TO-LOCAL/FULL...
-    //
-    char *path_utf8 = rebSpell("file-to-local", path);
+// 1. Usually you want to fully resolve local paths before making OS calls.
+//    But the dlopen() function searches library directories by default.
+//    So if %foo is passed in, you don't want to prepend the current dir to
+//    make it absolute, because it will *only* look there.
+//
+Option(Error*) Trap_Open_File_Descriptor_For_Library(
+    Sink(FileDescriptor) fd,
+    const Element* path
+){
+    char* path_utf8 = rebSpell("file-to-local", path);  // don't use :FULL
 
-    void *dll = dlopen(path_utf8, RTLD_LAZY/*|RTLD_GLOBAL*/);
-
+    void* handle = dlopen(path_utf8, RTLD_LAZY/*|RTLD_GLOBAL*/);
     rebFree(path_utf8);
 
-    if (not dll) // dlerror() gives const char*
-        rebJumps("fail", rebT(dlerror()));
+    if (*fd != nullptr) {
+        *fd = handle;  // dlopen() returns void* as an abstraction, not a FILE*
+        return nullptr;  // no error
+    }
 
-    return dll;
-  #endif
+    const char* error_utf8 = dlerror();  // reports ALL dlopen() errors [A]
+    return Error_User(error_utf8);
 }
 
 
 //
-//  Close_Library: C
+//  Trap_Close_Library: C
 //
 // Free a DLL library opened earlier.
 //
-void Close_Library(void *dll)
+Option(Error*) Trap_Close_Library(Library* lib)
 {
-  #ifndef NO_DL_LIB
-    dlclose(dll);
-  #endif
+    if (dlclose(Library_Fd(lib)) == 0)
+        return nullptr;  // no error
+
+    const char* error_utf8 = dlerror();  // reports ALL dlclose() errors [A]
+    return Error_User(error_utf8);
 }
 
 
 //
-//  Find_Function: C
+//  Trap_Find_Function_In_Library: C
 //
 // Get a DLL function address from its string name.
 //
-CFUNC *Find_Function(void *dll, const char *funcname)
-{
-  #ifndef NO_DL_LIB
-    // !!! See notes about data pointers vs. function pointers in the
-    // definition of CFUNC.  This is trying to stay on the right side
-    // of the specification, but OS APIs often are not standard C.  So
-    // this implementation is not guaranteed to work, just to suppress
-    // compiler warnings.  See:
-    //
-    //      http://stackoverflow.com/a/1096349/211160
+// 1. dlsym() can validly return 0 if the address of a symbol is 0, or if
+//    it is an "undefined weak symbol".  :-/
+//
+//    The way you check for errors from dlsym() is to see if it triggers a
+//    non-null dlerror().  You have to clear any old dlerror() first.
+//
+// 2. There is no standardization of the error message returned by dlerror().
+//    So failure could mean symbol not found, or something else.  Generally
+//    speaking the only error we should get on a valid and opened library
+//    would be symbol not found.
+//
+Option(Error*) Trap_Find_Function_In_Library(
+    Sink(CFunction*) cfunc,
+    const Library* lib,
+    const char* funcname
+){
+    assert(not Is_Library_Closed(lib));
 
-    CFUNC *fp;
-    *cast(void**, &fp) = dlsym(dll, funcname);
-    return fp;
-  #else
-    return nullptr;
-  #endif
+    dlerror();  // Clear any previous errors [1]
+
+    void* symbol = dlsym(Library_Fd(lib), funcname);  // may be nullptr [1]
+
+    const char* error_utf8 = dlerror();  // reports ALL dlsym() errors [A]
+
+    if (error_utf8 == nullptr) {
+        *cast(void**, cfunc) = symbol;
+        return nullptr;  // no error
+    }
+
+    return Error_User(error_utf8);  // not necessarily "symbol not found" [2]
 }

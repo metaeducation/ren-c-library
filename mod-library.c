@@ -8,7 +8,7 @@
 //=////////////////////////////////////////////////////////////////////////=//
 //
 // Copyright 2014 Atronix Engineering, Inc.
-// Copyright 2014-2017 Ren-C Open Source Contributors
+// Copyright 2014-2025 Ren-C Open Source Contributors
 // REBOL is a trademark of REBOL Technologies
 //
 // See README.md and CREDITS.md for more information.
@@ -22,209 +22,247 @@
 //=////////////////////////////////////////////////////////////////////////=//
 //
 
-#include "sys-core.h"
+#include "tmp-mod-library.h"
 
 #include "sys-library.h"
 
-#include "tmp-mod-library.h"
-
-
-REBTYP *EG_Library_Type = nullptr;  // (E)xtension (G)lobal LIBRARY! type
-
 
 //
-//  CT_Library: C
+//  export make-library: native [
 //
-REBINT CT_Library(noquote(Cell(const*)) a, noquote(Cell(const*)) b, bool strict)
+//  "Stopgap function for making a LIBRARY!"
+//
+//      return: [element?]
+//      spec [file!]
+//  ]
+//
+DECLARE_NATIVE(MAKE_LIBRARY)
+//
+// 1. The original library code didn't save the filename.  But with immutable
+//    FILE! it's easy enough to do.
 {
-    UNUSED(strict);
-    return VAL_LIBRARY(a) == VAL_LIBRARY(b);
-}
+    INCLUDE_PARAMS_OF_MAKE_LIBRARY;
 
+    Element* file = Element_ARG(SPEC);
 
-//
-//  MAKE_Library: C
-//
-Bounce MAKE_Library(
-    Frame(*) frame_,
-    enum Reb_Kind kind,
-    option(const REBVAL*) parent,
-    const REBVAL *arg
-){
-    assert(kind == REB_CUSTOM);
+    FileDescriptor fd;
+    Option(Error*) e = Trap_Open_File_Descriptor_For_Library(&fd, file);
+    if (e)
+        return RAISE(unwrap e);
 
-    if (parent)
-        return RAISE(Error_Bad_Make_Parent(kind, unwrap(parent)));
+    Library* library = cast(Library*, Prep_Stub(
+        FLAG_FLAVOR(CELLS)
+            | NODE_FLAG_MANAGED
+            | (not STUB_FLAG_LINK_NODE_NEEDS_MARK)  // width, integer
+            | (not STUB_FLAG_MISC_NODE_NEEDS_MARK)  // height, integer
+            | (not STUB_FLAG_INFO_NODE_NEEDS_MARK),  // info, not used ATM
+        Alloc_Stub()
+    ));
+    Copy_Cell(Force_Erase_Cell(Stub_Cell(library)), file);  // save it [1]
 
-    if (not IS_FILE(arg))
-        return RAISE(Error_Unexpected_Type(REB_FILE, VAL_TYPE(arg)));
+    library->link.p = fd;  // seen as shared by all instances
+    Corrupt_Unused_Field(library->misc.corrupt);
 
-    void *fd = Open_Library(arg);
+    Reset_Extended_Cell_Header_Noquote(
+        OUT,
+        EXTENDED_HEART(Is_Library),  // ExtraHeart is stored in Cell.extra
+        (not CELL_FLAG_DONT_MARK_NODE1)  // library stub needs mark
+            | CELL_FLAG_DONT_MARK_NODE2  // second slot not used ATM
+    );
 
-    if (fd == NULL)
-        return RAISE(arg);
-
-    REBLIB *lib = Alloc_Singular(FLAG_FLAVOR(LIBRARY) | NODE_FLAG_MANAGED);
-    Init_Trash(ARR_SINGLE(lib));  // !!! save name? other data?
-
-    lib->link.fd = fd;  // seen as shared by all instances
-    node_MISC(Meta, lib) = nullptr;  // !!! build from spec, e.g. arg?
-
-    RESET_CUSTOM_CELL(OUT, EG_Library_Type, CELL_FLAG_FIRST_IS_NODE);
-    INIT_VAL_NODE1(OUT, lib);
+    CELL_NODE1(OUT) = library;
 
     return OUT;
 }
 
 
-//
-//  TO_Library: C
-//
-Bounce TO_Library(Frame(*) frame_, enum Reb_Kind kind, const REBVAL *arg)
+IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
 {
-    return MAKE_Library(frame_, kind, nullptr, arg);
-}
+    INCLUDE_PARAMS_OF_MOLDIFY;
 
+    Element* v = Element_ARG(ELEMENT);
+    assert(Is_Library(v));
 
-//
-//  MF_Library: C
-//
-void MF_Library(REB_MOLD *mo, noquote(Cell(const*)) v, bool form)
-{
+    Molder* mo = Cell_Handle_Pointer(Molder, ARG(MOLDER));
+    bool form = Bool_ARG(FORM);
+
     UNUSED(form);
 
-    Pre_Mold(mo, v);
+    Library* lib = Cell_Library(v);
+    Append_Ascii(mo->string, "#[library! ");
+    if (Is_Library_Closed(lib))
+        Append_Ascii(mo->string, "{closed} ");
+    Mold_Or_Form_Element(mo, Library_File(lib), false);
+    Append_Ascii(mo->string, "]");
 
-    End_Mold(mo);
+    return NOTHING;
 }
 
 
+// 1. On POSIX in particular, there's no standardization of error codes for
+//    *why* a dlsym() lookup failed.  You get a string back that you'd have
+//    to parse.  The messages can vary:
 //
-//  REBTYPE: C
+//       "undefined symbol: <symbol_name>"
+//       "symbol <symbol_name> not found"
+//       "invalid handle"
+//       "symbol version mismatch"
+//       "corrupted shared object"
+//       "permission denied"
+//       "shared object not found"
+//       "relocation error"
 //
-REBTYPE(Library)
+//    On Windows, it's possible to get ERROR_PROC_NOT_FOUND specifically, but
+//    we're calling an abstraction layer.  If we just give back the OS error
+//    message it will say:
+//
+//       "The specified procedure could not be found.^M^/"
+//
+//    Use a heuristic to try and guess if we should decide it's a symbol
+//    not found error, and give a useful message.
+//
+// 2. What we really want is to RAISE if the function is not found, but FAIL
+//    if it's another unexpected condition.  But we only have a heuristic
+//    (at least on POSIX).
+//
+IMPLEMENT_GENERIC(PICK, Is_Library)
 {
-    switch (ID_OF_SYMBOL(verb)) {
-    case SYM_CLOSE: {
-        INCLUDE_PARAMS_OF_CLOSE;
+    INCLUDE_PARAMS_OF_PICK;
 
-        REBVAL *lib = ARG(port); // !!! generic arg name is "port"?
+    Element* library = Element_ARG(LOCATION);
+    Library* lib = Cell_Library(library);
 
-        if (VAL_LIBRARY_FD(lib) == NULL) {
-            // allow to CLOSE an already closed library
-        }
-        else {
-            Close_Library(VAL_LIBRARY_FD(lib));
-            VAL_LIBRARY(lib)->link.fd = nullptr;
-        }
-        return nullptr; }
+    Element* picker = Element_ARG(PICKER);
 
-    default:
-        break;
-    }
+    if (not Is_Text(picker))
+        return FAIL(PARAM(PICKER));
 
-    return BOUNCE_UNHANDLED;
+    const char* funcname = String_UTF8(Cell_String(picker));
+
+    CFunction* cfunc;
+    Option(Error*) e = Trap_Find_Function_In_Library(&cfunc, lib, funcname);
+    if (not e)
+        return Init_Handle_Cfunc(OUT, cfunc);
+
+    Element* error = Init_Error(SPARE, unwrap e);
+
+    return rebDelegate("any [",  // use heuristic for better error handling [1]
+        "find pick", error, "'message -{could not be found}-",
+        "all [",
+            "find pick", error, "'message -{not found}-",
+            "not find pick", error, "'message -{shared}-",
+        "]",
+    "] then [raise [",  // RAISE allows defuse as NULL with TRY
+        "-{Couldn't find}- mold", picker, "-{in}- mold", library,
+    "]] else [",
+        "fail", error,  // is heuristic good enough to fail if not matching? [2]
+    "]");
 }
 
 
-Symbol(const*) S_Library(void) {
-    return Canon(LIBRARY_X);
+IMPLEMENT_GENERIC(CLOSE, Is_Library)
+{
+    INCLUDE_PARAMS_OF_CLOSE;
+
+    Element* library = Element_ARG(PORT);  // !!! generic arg name is "port"?
+    Library* lib = Cell_Library(library);
+
+    if (Library_Fd(lib) == nullptr)
+        return rebDelegate("raise [",  // RAISE allows defuse with TRY
+            "-{CLOSE called on already closed library:}- mold", library,
+        "]");
+
+    Option(Error*) e = Trap_Close_Library(lib);
+    Cell_Library(library)->link.p = nullptr;
+    if (e)
+        return FAIL(unwrap e);  // unexpected failure: FAIL, don't RAISE
+
+    return COPY(library);
+}
+
+
+extern RebolApiTable g_librebol;
+
+//
+//  export run-library-collator: native [
+//
+//  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
+//
+//      return: [~null~ any-value?]
+//      library [element?]  ; LIBRARY! datatype not fully formed yet...
+//      linkname [text!]
+//  ]
+//
+DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
+//
+// !!! This code used to check for loading an already loaded extension.  It
+// looked in an "extensions list", but now that the extensions are modules
+// really this should just be the same as looking in the modules list.  Such
+// code should be in usermode (very awkward in C).  Only unusual C bit was:
+//
+//     /*
+//      * Found existing extension, decrease reference added by MAKE_library
+//      */
+//     OS_CLOSE_LIBRARY(Cell_Library_FD(lib));
+//
+// 1. We pass the collation entry point the table of API functions.  This is
+//    how DLLs know the addresses of functions in the EXE that they can call.
+//    If the extension is built in with the executable, it uses a shortcut
+//    and just calls the API_rebXXX() functions directly...so it does not use
+//    this table.
+{
+    INCLUDE_PARAMS_OF_RUN_LIBRARY_COLLATOR;
+
+    CFunction* cfunc;
+    Option(Error*) e = Trap_Find_Function_In_Library(
+        &cfunc,
+        Cell_Library(ARG(LIBRARY)),
+        cs_cast(String_Head(Cell_String(ARG(LINKNAME))))
+    );
+    if (e)
+        return RAISE(unwrap e);  // RAISE allows defuse with TRY
+
+    ExtensionCollator* collator = cast(ExtensionCollator*, cfunc);
+
+    return (*collator)(&g_librebol);  // pass collation entry point the API [1]
 }
 
 
 //
 //  startup*: native [
 //
-//  {Register the LIBRARY! datatype (so MAKE LIBRARY! [] etc. work)}
+//  "Register the LIBRARY! datatype (so MAKE LIBRARY! [] etc. work)"
 //
-//      return: <none>
+//      return: [~]
 //  ]
 //
-DECLARE_NATIVE(startup_p)
+DECLARE_NATIVE(STARTUP_P)
 {
-    LIBRARY_INCLUDE_PARAMS_OF_STARTUP_P;
+    INCLUDE_PARAMS_OF_STARTUP_P;
 
-    // !!! See notes on Hook_Datatype for this poor-man's substitute for a
-    // coherent design of an extensible object system (as per Lisp's CLOS)
-    //
-    EG_Library_Type = Hook_Datatype(
-        "http://datatypes.rebol.info/library",
-        "external library reference",
-        &S_Library,
-        &T_Library,
-        &CT_Library,
-        &MAKE_Library,
-        &TO_Library,
-        &MF_Library
-    );
+    EXTENDED_HEART(Is_Library) = Register_Datatype("library!");
 
-    Extend_Generics_Someday(nullptr);  // !!! See comments
+    Register_Generics(EXTENDED_GENERICS());
 
-    return NONE;
-}
-
-
-extern RL_LIB Ext_Lib;
-
-//
-//  export run-library-collator: native [
-//
-//  {Execute a function in a DLL or other library that returns a REBVAL*}
-//
-//      return: [<opt> any-value!]
-//      library [library!]
-//      linkname [text!]
-//  ]
-//
-DECLARE_NATIVE(run_library_collator)
-{
-    LIBRARY_INCLUDE_PARAMS_OF_RUN_LIBRARY_COLLATOR;
-
-    // !!! This code used to check for loading an already loaded
-    // extension.  It looked in an "extensions list", but now that the
-    // extensions are modules really this should just be the same as
-    // looking in the modules list.  Such code should be in usermode
-    // (very awkward in C).  The only unusual C bit was:
-    //
-    //     // found the existing extension, decrease the reference
-    //     // added by MAKE_library
-    //     //
-    //     OS_CLOSE_LIBRARY(VAL_LIBRARY_FD(lib));
-    //
-
-    CFUNC *cfunc = Find_Function(
-        VAL_LIBRARY_FD(ARG(library)),
-        cs_cast(STR_HEAD(VAL_STRING(ARG(linkname))))
-    );
-    if (cfunc == nullptr)
-        fail ("Could not find collator function in library");
-
-    COLLATE_CFUNC *collator = cast(COLLATE_CFUNC*, cfunc);
-
-    // We pass the collation entry point the table of API functions.  This is
-    // how DLLs know the addresses of functions in the EXE that they can call.
-    // If the extension is built in with the executable, it uses a shortcut
-    // and just calls the RL_rebXXX() functions directly...so it does not use
-    // the table we're passing.
-    //
-    return collator(&Ext_Lib);
+    return NOTHING;
 }
 
 
 //
-//  shutdown_p: native [
+//  shutdown*: native [
 //
-//  {Unregister the LIBRARY! datatype (MAKE LIBRARY! will fail)}
+//  "Unregister the LIBRARY! datatype"
 //
-//      return: <none>
+//      return: [~]
 //  ]
 //
-DECLARE_NATIVE(shutdown_p)
+DECLARE_NATIVE(SHUTDOWN_P)
 {
-    LIBRARY_INCLUDE_PARAMS_OF_SHUTDOWN_P;
+    INCLUDE_PARAMS_OF_SHUTDOWN_P;
 
-    Unhook_Datatype(EG_Library_Type);
-    EG_Library_Type = nullptr;
+    Unregister_Generics(EXTENDED_GENERICS());
 
-    return NONE;
+    Unregister_Datatype(EXTENDED_HEART(Is_Library));
+
+    return NOTHING;
 }

@@ -1,28 +1,47 @@
 ## Library Extension
 
-The LIBRARY! datatype in Rebol represented the idea of dynamically loadable
-code.  It was used by the FFI to speak to an arbitrary DLL through C types,
-but also used by the extension mechanism itself to deal with specially
-constructed Rebol Extension DLLs--which can provide additional natives or
-ports to the system.
+The LIBRARY! datatype is used to interact with things like .DLL or .so files,
+to locate dynamically loadable code.
+
+    >> winsock: make library! %/C/Windows/System32/wsock32.dll
+    == #[library! %/C/Windows/System32/wsock32.dll]
+
+    >> pick winsock "gethostbyname"
+    == #[handle!]
+
+    >> pick winsock "gethostbynickname"
+    ** Error: Couldn't find "gethostbynickname"
+          in #[library! %/C/Windows/System32/wsock32.dll]
+
+    >> try pick winsock "gethostbynickname"
+    == ~null~  ; anti
+
+    >> close winsock
+    == #[library! {closed} %/C/Windows/System32/wsock32.dll]
+
+It's the foundation of being able to load extensions dynamically.  For
+instance, if you chose to build the UUID extension as dynamically loadable,
+LIBRARY! provides the foundation for LOAD-EXTENSION in that case:
+
+    mod-uuid: load-extension join what-dir %build/libr3-uuid.so
+    uuid: mod-uuid.generate
+    assert [16 = length of uuid]
+
+
+## Library Extension can't itself be a DLL-based extension
 
 There's a bit of an unusual aspect to having the Library code in an extension,
 since it cannot itself be loaded dynamically.
 
-The code was at one point tested in the continuous integration, with the
-UUID extension by building with "UUID *" (* means dynamic) and this code: 
+Hence, it's only useful if you choose the "build into executable" option for
+the extension in make.
 
-    - name: Test UUID Extension Built As DLL
-      shell: r3built --fragment {0}  # See README: Ren-C Code As Step
-      run: |
-        print {== Hello From R3 DLL Test! ==}
-        mod-uuid: load-extension join what-dir %build/libr3-uuid.so
-        print {== UUID Extension Loaded ==}
-        uuid: mod-uuid.generate
-        assert [16 = length of uuid]
-        print ["Succeeded:" uuid]
 
-However it was removed because the feature isn't a high enough priority to be
-in the forefront and make it something that can be worked on independently,
-and not burden the rest of the system.  (e.g. the JavaScript build cannot
-make use of the DLL handling).
+## Supports POSIX and Windows, WebAssembly support TBD
+
+POSIX version uses dlopen(), and the Windows version uses GetProcAddress().
+
+WebAssembly has something called "side modules", and it's strongly desired
+to be able to support LIBRARY! using these:
+
+  https://emscripten.org/docs/compiling/Dynamic-Linking.html

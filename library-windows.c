@@ -1,13 +1,13 @@
 //
 //  File: %library-windows.c
-//  Summary: {OS API function library called by REBOL interpreter}
+//  Summary: "OS API function library called by REBOL interpreter"
 //  Project: "Rebol 3 Interpreter and Run-time (Ren-C branch)"
 //  Homepage: https://github.com/metaeducation/ren-c/
 //
 //=////////////////////////////////////////////////////////////////////////=//
 //
 // Copyright 2012 REBOL Technologies
-// Copyright 2012-2017 Ren-C Open Source Contributors
+// Copyright 2012-2025 Ren-C Open Source Contributors
 // REBOL is a trademark of REBOL Technologies
 //
 // See README.md and CREDITS.md for more information.
@@ -34,32 +34,39 @@
 #include <process.h>
 #include <assert.h>
 
-#include "sys-core.h"
+#include "tmp-mod-library.h"
 
+#include "sys-library.h"
 
 //
-//  Open_Library: C
+//  Trap_Open_File_Descriptor_For_Library: C
 //
-// Load a DLL library and return the handle to it.
-// If zero is returned, error indicates the reason.
+// Load a DLL library and return the handle to it, or else an error.
 //
-void *Open_Library(const REBVAL *path)
-{
-    // While often when communicating with the OS, the local path should be
-    // fully resolved, the LoadLibraryW() function searches DLL directories by
-    // default.  So if %foo is passed in, you don't want to prepend the
-    // current dir to make it absolute, because it will *only* look there.
-    //
-    WCHAR *path_utf8 = rebSpellWide("file-to-local", path);
+// 1. While often when communicating with the OS, the local path should be
+//    fully resolved, the LoadLibraryW() function searches DLL directories by
+//    default.  So if %foo is passed in, you don't want to prepend the
+//    current dir to make it absolute, because it will *only* look there.
+//
+// 2. Though HMODULE isn't guaranteed to be a pointer, all Windows in the wild
+//    implement it thusly, and it would break a lot more code than this if
+//    that were to change.
+//
+Option(Error*) Trap_Open_File_Descriptor_For_Library(
+    Sink(FileDescriptor) fd,
+    const Element* path
+){
+    WCHAR* path_wide = rebSpellWide("file-to-local", path);  // no :FULL [1]
 
-    void *dll = LoadLibraryW(path_utf8);
+    HMODULE hmodule = LoadLibraryW(path_wide);
+    rebFree(path_wide);
 
-    rebFree(path_utf8);
+    if (hmodule) {
+        *fd = hmodule;  // HMODULE not technically "guaranteed" as pointer [2]
+        return nullptr;  // no error
+    }
 
-    if (not dll)
-        rebFail_OS (GetLastError());
-
-    return dll;
+    return Error_OS(GetLastError());
 }
 
 
@@ -68,30 +75,42 @@ void *Open_Library(const REBVAL *path)
 //
 // Free a DLL library opened earlier.
 //
-void Close_Library(void *dll)
+Option(Error*) Trap_Close_Library(Library* lib)
 {
-    FreeLibrary((HINSTANCE)dll);
+    assert(not Is_Library_Closed(lib));
+
+    HMODULE hmodule = cast(HMODULE, Library_Fd(lib));
+    if (FreeLibrary(hmodule))
+        return nullptr;  // nonzero result means no error
+
+    return Error_OS(GetLastError());
 }
 
 
 //
-//  Find_Function: C
+//  Trap_Find_Function_In_Library: C
 //
 // Get a DLL function address from its string name.
 //
-CFUNC *Find_Function(void *dll, const char *funcname)
-{
-    // !!! See notes about data pointers vs. function pointers in the
-    // definition of CFUNC.  This is trying to stay on the right side
-    // of the specification, but OS APIs often are not standard C.  So
-    // this implementation is not guaranteed to work, just to suppress
-    // compiler warnings.  See:
-    //
-    //      http://stackoverflow.com/a/1096349/211160
+// !!! See notes about data pointers vs. function pointers in the definition
+// of CFunction.  This is trying to stay on the right side of the spec, but
+// OS APIs often are not standard C.  So this implementation is not guaranteed
+// to work, just to suppress compiler warnings.  See:
+//
+//      http://stackoverflow.com/a/1096349/211160
+//
+Option(Error*) Trap_Find_Function_In_Library(
+    Sink(CFunction*) cfunc,
+    const Library* lib,
+    const char* funcname
+){
+    HMODULE hmodule = cast(HMODULE, Library_Fd(lib));
+    FARPROC fp = GetProcAddress(hmodule, funcname);
 
-    FARPROC fp = GetProcAddress((HMODULE)dll, funcname);
+    if (fp != nullptr) {  // windows guarantees DLLs not at address 0
+        *cfunc = cast(CFunction*, fp);
+        return nullptr;  // no error
+    }
 
-    //DWORD err = GetLastError();
-
-    return cast(CFUNC*, fp);
+    return Error_OS(GetLastError());
 }
