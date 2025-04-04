@@ -22,28 +22,24 @@
 //=////////////////////////////////////////////////////////////////////////=//
 //
 
+#include "sys-core.h"
 #include "tmp-mod-library.h"
 
 #include "sys-library.h"
 
 
-//
-//  export make-library: native [
-//
-//  "Stopgap function for making a LIBRARY!"
-//
-//      return: [element?]
-//      spec [file!]
-//  ]
-//
-DECLARE_NATIVE(MAKE_LIBRARY)
-//
 // 1. The original library code didn't save the filename.  But with immutable
 //    FILE! it's easy enough to do.
+//
+IMPLEMENT_GENERIC(MAKE, Is_Library)
 {
-    INCLUDE_PARAMS_OF_MAKE_LIBRARY;
+    INCLUDE_PARAMS_OF_MAKE;
+    UNUSED(ARG(TYPE));
 
-    Element* file = Element_ARG(SPEC);
+    if (not Is_File(ARG(DEF)))
+        return FAIL(PARAM(DEF));
+
+    Element* file = Element_ARG(DEF);
 
     FileDescriptor fd;
     Option(Error*) e = Trap_Open_File_Descriptor_For_Library(&fd, file);
@@ -189,7 +185,7 @@ extern RebolApiTable g_librebol;
 //  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
 //
 //      return: [~null~ any-value?]
-//      library [element?]  ; LIBRARY! datatype not fully formed yet...
+//      library [library!]
 //      linkname [text!]
 //  ]
 //
@@ -231,7 +227,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
 //
 //  startup*: native [
 //
-//  "Register the LIBRARY! datatype (so MAKE LIBRARY! [] etc. work)"
+//  "Startup LIBRARY! Extension"
 //
 //      return: [~]
 //  ]
@@ -240,10 +236,6 @@ DECLARE_NATIVE(STARTUP_P)
 {
     INCLUDE_PARAMS_OF_STARTUP_P;
 
-    EXTENDED_HEART(Is_Library) = Register_Datatype("library!");
-
-    Register_Generics(EXTENDED_GENERICS());
-
     return NOTHING;
 }
 
@@ -251,7 +243,7 @@ DECLARE_NATIVE(STARTUP_P)
 //
 //  shutdown*: native [
 //
-//  "Unregister the LIBRARY! datatype"
+//  "Shutdown LIBRARY! Extension"
 //
 //      return: [~]
 //  ]
@@ -259,10 +251,6 @@ DECLARE_NATIVE(STARTUP_P)
 DECLARE_NATIVE(SHUTDOWN_P)
 {
     INCLUDE_PARAMS_OF_SHUTDOWN_P;
-
-    Unregister_Generics(EXTENDED_GENERICS());
-
-    Unregister_Datatype(EXTENDED_HEART(Is_Library));
 
     return NOTHING;
 }

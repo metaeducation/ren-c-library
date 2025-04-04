@@ -34,6 +34,7 @@
 #include <process.h>
 #include <assert.h>
 
+#include "sys-core.h"
 #include "tmp-mod-library.h"
 
 #include "sys-library.h"
