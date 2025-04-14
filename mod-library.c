@@ -61,7 +61,7 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
 
     Reset_Extended_Cell_Header_Noquote(
         OUT,
-        EXTENDED_HEART(Is_Library),  // ExtraHeart is stored in Cell.extra
+        EXTRA_HEART_LIBRARY,
         (not CELL_FLAG_DONT_MARK_NODE1)  // library stub needs mark
             | CELL_FLAG_DONT_MARK_NODE2  // second slot not used ATM
     );
@@ -130,10 +130,10 @@ IMPLEMENT_GENERIC(PICK, Is_Library)
 
     Element* picker = Element_ARG(PICKER);
 
-    if (not Is_Text(picker))
+    if (not Is_Text(picker) and not Is_Word(picker))
         return FAIL(PARAM(PICKER));
 
-    const char* funcname = String_UTF8(Cell_String(picker));
+    const char* funcname = cs_cast(Cell_Utf8_At(picker));
 
     CFunction* cfunc;
     Option(Error*) e = Trap_Find_Function_In_Library(&cfunc, lib, funcname);
