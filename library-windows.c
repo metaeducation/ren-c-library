@@ -64,7 +64,7 @@ Option(Error*) Trap_Open_File_Descriptor_For_Library(
 
     if (hmodule) {
         *fd = hmodule;  // HMODULE not technically "guaranteed" as pointer [2]
-        return nullptr;  // no error
+        return SUCCESS;
     }
 
     return Error_OS(GetLastError());
@@ -82,7 +82,7 @@ Option(Error*) Trap_Close_Library(Library* lib)
 
     HMODULE hmodule = cast(HMODULE, Library_Fd(lib));
     if (FreeLibrary(hmodule))
-        return nullptr;  // nonzero result means no error
+        return SUCCESS;
 
     return Error_OS(GetLastError());
 }
@@ -110,7 +110,7 @@ Option(Error*) Trap_Find_Function_In_Library(
 
     if (fp != nullptr) {  // windows guarantees DLLs not at address 0
         *cfunc = cast(CFunction*, fp);
-        return nullptr;  // no error
+        return SUCCESS;
     }
 
     return Error_OS(GetLastError());

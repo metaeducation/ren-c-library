@@ -69,7 +69,7 @@
 //    make it absolute, because it will *only* look there.
 //
 Option(Error*) Trap_Open_File_Descriptor_For_Library(
-    Sink(FileDescriptor) fd,
+    Sink(FileDescriptor) fd_out,
     const Element* path
 ){
     char* path_utf8 = rebSpell("file-to-local", path);  // don't use :FULL
@@ -77,9 +77,9 @@ Option(Error*) Trap_Open_File_Descriptor_For_Library(
     void* handle = dlopen(path_utf8, RTLD_LAZY/*|RTLD_GLOBAL*/);
     rebFree(path_utf8);
 
-    if (*fd != nullptr) {
-        *fd = handle;  // dlopen() returns void* as an abstraction, not a FILE*
-        return nullptr;  // no error
+    if (handle != nullptr) {
+        *fd_out = handle;  // dlopen() returns void*, not a FILE*
+        return SUCCESS;
     }
 
     const char* error_utf8 = dlerror();  // reports ALL dlopen() errors [A]
@@ -95,7 +95,7 @@ Option(Error*) Trap_Open_File_Descriptor_For_Library(
 Option(Error*) Trap_Close_Library(Library* lib)
 {
     if (dlclose(Library_Fd(lib)) == 0)
-        return nullptr;  // no error
+        return SUCCESS;
 
     const char* error_utf8 = dlerror();  // reports ALL dlclose() errors [A]
     return Error_User(error_utf8);
@@ -133,7 +133,7 @@ Option(Error*) Trap_Find_Function_In_Library(
 
     if (error_utf8 == nullptr) {
         *cast(void**, cfunc) = symbol;
-        return nullptr;  // no error
+        return SUCCESS;
     }
 
     return Error_User(error_utf8);  // not necessarily "symbol not found" [2]
