@@ -156,6 +156,17 @@ IMPLEMENT_GENERIC(PICK, Is_Library)
 }
 
 
+IMPLEMENT_GENERIC(OPEN_Q, Is_Library)
+{
+    INCLUDE_PARAMS_OF_OPEN_Q;
+
+    Element* library = Element_ARG(ELEMENT);
+    Library* lib = Cell_Library(library);
+
+    return rebLogic(Library_Fd(lib) != nullptr);
+}
+
+
 IMPLEMENT_GENERIC(CLOSE, Is_Library)
 {
     INCLUDE_PARAMS_OF_CLOSE;
