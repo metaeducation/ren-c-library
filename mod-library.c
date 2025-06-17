@@ -85,11 +85,11 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
     UNUSED(form);
 
     Library* lib = Cell_Library(v);
-    Append_Ascii(mo->string, "#[library! ");
+    Begin_Non_Lexical_Mold(mo, v);
     if (Is_Library_Closed(lib))
         Append_Ascii(mo->string, "{closed} ");
     Mold_Or_Form_Element(mo, Library_File(lib), false);
-    Append_Ascii(mo->string, "]");
+    End_Non_Lexical_Mold(mo);
 
     return TRIPWIRE;
 }

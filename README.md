@@ -4,20 +4,20 @@ The LIBRARY! datatype is used to interact with things like .DLL or .so files,
 to locate dynamically loadable code.
 
     >> winsock: make library! %/C/Windows/System32/wsock32.dll
-    == #[library! %/C/Windows/System32/wsock32.dll]
+    == &[library! %/C/Windows/System32/wsock32.dll]
 
     >> pick winsock "gethostbyname"
-    == #[handle!]
+    == &[handle! []]
 
     >> pick winsock "gethostbynickname"
     ** Error: Couldn't find "gethostbynickname"
-          in #[library! %/C/Windows/System32/wsock32.dll]
+          in &[library! %/C/Windows/System32/wsock32.dll]
 
     >> try pick winsock "gethostbynickname"
     == ~null~  ; anti
 
     >> close winsock
-    == #[library! {closed} %/C/Windows/System32/wsock32.dll]
+    == &[library! {closed} %/C/Windows/System32/wsock32.dll]
 
 It's the foundation of being able to load extensions dynamically.  For
 instance, if you chose to build the UUID extension as dynamically loadable,

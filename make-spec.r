@@ -9,18 +9,14 @@ use-librebol: 'no
 
 includes: []
 
-sources: %mod-library.c
+sources: [mod-library.c]
 
 depends: compose [
     (switch platform-config.os-base [
         'Windows [
-            spread [
-                [%library-windows.c]
-            ]
+            'library-windows.c
         ]
     ] else [
-        spread [
-            [%library-posix.c]
-        ]
+        'library-posix.c
     ])
 ]
