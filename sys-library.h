@@ -35,9 +35,9 @@ typedef void* FileDescriptor;
 INLINE FileDescriptor Library_Fd(const Library *lib)
   { return lib->link.p; }
 
-INLINE const Element* Library_File(const Library *lib) {
-    return c_cast(Element*, Stub_Cell(lib));
-}
+INLINE const Element* Library_File(const Library *lib)
+  { return c_cast(Element*, Stub_Cell(lib)); }
+
 
 INLINE bool Is_Library_Closed(const Library* lib)
   { return lib->link.p == nullptr; }
@@ -47,7 +47,7 @@ INLINE Library* Cell_Library(const Cell* v) {
     return cast(Array*, CELL_NODE1(v));
 }
 
-#define Cell_Library_FD(v) \
+#define Cell_Library_Fd(v) \
     Library_Fd(Cell_Library(v))
 
 

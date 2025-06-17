@@ -226,7 +226,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
 //     /*
 //      * Found existing extension, decrease reference added by MAKE_library
 //      */
-//     OS_CLOSE_LIBRARY(Cell_Library_FD(lib));
+//     OS_CLOSE_LIBRARY(Cell_Library_Fd(lib));
 //
 // 1. We pass the collation entry point the table of API functions.  This is
 //    how DLLs know the addresses of functions in the EXE that they can call.
