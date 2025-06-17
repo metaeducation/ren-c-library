@@ -143,13 +143,13 @@ IMPLEMENT_GENERIC(PICK, Is_Library)
     Element* error = Init_Warning(SPARE, unwrap e);
 
     return rebDelegate("any [",  // use heuristic for better error handling [1]
-        "find pick", error, "'message -{could not be found}-",
+        "find pick", error, "'message -[could not be found]-",
         "all [",
-            "find pick", error, "'message -{not found}-",
-            "not find pick", error, "'message -{shared}-",
+            "find pick", error, "'message -[not found]-",
+            "not find pick", error, "'message -[shared]-",
         "]",
     "] then [fail [",  // FAIL allows defuse as NULL with TRY
-        "-{Couldn't find}- mold", picker, "-{in}- mold", library,
+        "-[Couldn't find]- mold", picker, "-[in]- mold", library,
     "]] else [",
         "panic", error,  // is heuristic good enough to panic if no match? [2]
     "]");
@@ -176,7 +176,7 @@ IMPLEMENT_GENERIC(CLOSE, Is_Library)
 
     if (Library_Fd(lib) == nullptr)
         return rebDelegate("fail [",  // FAIL allows defuse with TRY
-            "-{CLOSE called on already closed library:}- mold", library,
+            "-[CLOSE called on already closed library:]- mold", library,
         "]");
 
     Option(Error*) e = Trap_Close_Library(lib);
