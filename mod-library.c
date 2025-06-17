@@ -95,50 +95,62 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
 }
 
 
-// 1. On POSIX in particular, there's no standardization of error codes for
-//    *why* a dlsym() lookup failed.  You get a string back that you'd have
-//    to parse.  The messages can vary:
-//
-//       "undefined symbol: <symbol_name>"
-//       "symbol <symbol_name> not found"
-//       "invalid handle"
-//       "symbol version mismatch"
-//       "corrupted shared object"
-//       "permission denied"
-//       "shared object not found"
-//       "relocation error"
-//
-//    On Windows, it's possible to get ERROR_PROC_NOT_FOUND specifically, but
-//    we're calling an abstraction layer.  If we just give back the OS error
-//    message it will say:
-//
-//       "The specified procedure could not be found.^M^/"
-//
-//    Use a heuristic to try and guess if we should decide it's a symbol
-//    not found error, and give a useful message.
-//
-// 2. What we really want is to FAIL if the function is not found, but PANIC
-//    if it's another unexpected condition.  But we only have a heuristic
-//    (at least on POSIX).
-//
-IMPLEMENT_GENERIC(PICK, Is_Library)
+IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
 {
-    INCLUDE_PARAMS_OF_PICK;
+    INCLUDE_PARAMS_OF_TWEAK_P;
 
     Element* library = Element_ARG(LOCATION);
     Library* lib = Cell_Library(library);
 
-    Element* picker = Element_ARG(PICKER);
+    Value* picker = Element_ARG(PICKER);
 
     if (not Is_Text(picker) and not Is_Word(picker))
-        return FAIL(PARAM(PICKER));
+        return PANIC(PARAM(PICKER));
+
+    Value* dual = ARG(DUAL);
+    if (Not_Lifted(dual)) {
+        if (Is_Dual_Nulled_Pick_Signal(dual))
+            goto handle_pick;
+
+        return PANIC(Error_Bad_Poke_Dual_Raw(dual));
+    }
+
+    goto handle_poke;
+
+  handle_pick: { /////////////////////////////////////////////////////////////
+
+  // 1. On POSIX in particular, there's no standardization of error codes for
+  //    *why* a dlsym() lookup failed.  You get a string back that you'd have
+  //    to parse.  The messages can vary:
+  //
+  //       "undefined symbol: <symbol_name>"
+  //       "symbol <symbol_name> not found"
+  //       "invalid handle"
+  //       "symbol version mismatch"
+  //       "corrupted shared object"
+  //       "permission denied"
+  //       "shared object not found"
+  //       "relocation error"
+  //
+  //    On Windows, it's possible to get ERROR_PROC_NOT_FOUND, but we're
+  //    calling an abstraction layer.  If we just give back the OS error
+  //    message it will say:
+  //
+  //        "The specified procedure could not be found.^M^/"
+  //
+  //    Use a heuristic to try and guess if we should decide it's a symbol
+  //    not found error, and give a useful message.
+  //
+  // 2. What we really want is to RAISE if the function is not found, but FAIL
+  //    if it's another unexpected condition.  But we only have a heuristic
+  //    (at least on POSIX).
 
     const char* funcname = cs_cast(Cell_Utf8_At(picker));
 
     CFunction* cfunc;
     Option(Error*) e = Trap_Find_Function_In_Library(&cfunc, lib, funcname);
     if (not e)
-        return Init_Handle_Cfunc(OUT, cfunc);
+        return DUAL_LIFTED(Init_Handle_Cfunc(OUT, cfunc));
 
     Element* error = Init_Warning(SPARE, unwrap e);
 
@@ -153,7 +165,11 @@ IMPLEMENT_GENERIC(PICK, Is_Library)
     "]] else [",
         "panic", error,  // is heuristic good enough to panic if no match? [2]
     "]");
-}
+
+} handle_poke: { /////////////////////////////////////////////////////////////
+
+    return PANIC("Cannot modify a LIBRARY! (immutable)");
+}}
 
 
 IMPLEMENT_GENERIC(OPEN_Q, Is_Library)
