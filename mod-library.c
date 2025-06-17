@@ -37,14 +37,14 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
     UNUSED(ARG(TYPE));
 
     if (not Is_File(ARG(DEF)))
-        return FAIL(PARAM(DEF));
+        return PANIC(PARAM(DEF));
 
     Element* file = Element_ARG(DEF);
 
     FileDescriptor fd;
     Option(Error*) e = Trap_Open_File_Descriptor_For_Library(&fd, file);
     if (e)
-        return RAISE(unwrap e);
+        return FAIL(unwrap e);
 
     Library* library = cast(Library*, Prep_Stub(
         FLAG_FLAVOR(CELLS)
@@ -117,7 +117,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
 //    Use a heuristic to try and guess if we should decide it's a symbol
 //    not found error, and give a useful message.
 //
-// 2. What we really want is to RAISE if the function is not found, but FAIL
+// 2. What we really want is to FAIL if the function is not found, but PANIC
 //    if it's another unexpected condition.  But we only have a heuristic
 //    (at least on POSIX).
 //
@@ -140,7 +140,7 @@ IMPLEMENT_GENERIC(PICK, Is_Library)
     if (not e)
         return Init_Handle_Cfunc(OUT, cfunc);
 
-    Element* error = Init_Error(SPARE, unwrap e);
+    Element* error = Init_Warning(SPARE, unwrap e);
 
     return rebDelegate("any [",  // use heuristic for better error handling [1]
         "find pick", error, "'message -{could not be found}-",
@@ -148,10 +148,10 @@ IMPLEMENT_GENERIC(PICK, Is_Library)
             "find pick", error, "'message -{not found}-",
             "not find pick", error, "'message -{shared}-",
         "]",
-    "] then [raise [",  // RAISE allows defuse as NULL with TRY
+    "] then [fail [",  // FAIL allows defuse as NULL with TRY
         "-{Couldn't find}- mold", picker, "-{in}- mold", library,
     "]] else [",
-        "fail", error,  // is heuristic good enough to fail if not matching? [2]
+        "panic", error,  // is heuristic good enough to panic if no match? [2]
     "]");
 }
 
@@ -175,14 +175,14 @@ IMPLEMENT_GENERIC(CLOSE, Is_Library)
     Library* lib = Cell_Library(library);
 
     if (Library_Fd(lib) == nullptr)
-        return rebDelegate("raise [",  // RAISE allows defuse with TRY
+        return rebDelegate("fail [",  // FAIL allows defuse with TRY
             "-{CLOSE called on already closed library:}- mold", library,
         "]");
 
     Option(Error*) e = Trap_Close_Library(lib);
     Cell_Library(library)->link.p = nullptr;
     if (e)
-        return FAIL(unwrap e);  // unexpected failure: FAIL, don't RAISE
+        return PANIC(unwrap e);  // unexpected failure: PANIC, don't FAIL
 
     return COPY(library);
 }
@@ -227,7 +227,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
         cs_cast(String_Head(Cell_String(ARG(LINKNAME))))
     );
     if (e)
-        return RAISE(unwrap e);  // RAISE allows defuse with TRY
+        return FAIL(unwrap e);  // FAIL allows defuse with TRY
 
     ExtensionCollator* collator = f_cast(ExtensionCollator*, cfunc);
 
