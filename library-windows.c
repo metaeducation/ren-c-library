@@ -109,7 +109,7 @@ Option(Error*) Trap_Find_Function_In_Library(
     FARPROC fp = GetProcAddress(hmodule, funcname);
 
     if (fp != nullptr) {  // windows guarantees DLLs not at address 0
-        *cfunc = cast(CFunction*, fp);
+        *cfunc = f_cast(CFunction*, fp);
         return SUCCESS;
     }
 

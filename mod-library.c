@@ -229,7 +229,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
     if (e)
         return RAISE(unwrap e);  // RAISE allows defuse with TRY
 
-    ExtensionCollator* collator = cast(ExtensionCollator*, cfunc);
+    ExtensionCollator* collator = f_cast(ExtensionCollator*, cfunc);
 
     return (*collator)(&g_librebol);  // pass collation entry point the API [1]
 }
