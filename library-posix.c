@@ -1,8 +1,8 @@
 //
-//  File: %library-posix.c
-//  Summary: "POSIX Library-related functions"
-//  Project: "Rebol 3 Interpreter and Run-time (Ren-C branch)"
-//  Homepage: https://github.com/metaeducation/ren-c/
+//  file: %library-posix.c
+//  summary: "POSIX Library-related functions"
+//  project: "Rebol 3 Interpreter and Run-time (Ren-C branch)"
+//  homepage: https://github.com/metaeducation/ren-c/
 //
 //=////////////////////////////////////////////////////////////////////////=//
 //

@@ -1,7 +1,7 @@
-REBOL [
-    Title: "Library/DLL Extension"
-    Name: Library
-    Type: Module
-    Version: 1.0.0
-    License: {Apache 2.0}
+Rebol [
+    title: "Library/DLL Extension"
+    name: Library
+    type: module
+    version: 1.0.0
+    license: {Apache 2.0}
 ]

@@ -1,8 +1,8 @@
-REBOL [
-    Name: Library
-    Notes: "See %extensions/README.md for the format and fields of this file"
+Rebol [
+    name: Library
+    notes: "See %extensions/README.md for the format and fields of this file"
 
-    Extended-Types: [library!]
+    extended-types: [library!]
 ]
 
 use-librebol: 'no

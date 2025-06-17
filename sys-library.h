@@ -1,8 +1,8 @@
 //
-//  File: %sys-library.h
-//  Summary: "Definitions for LIBRARY! (DLL, .so, .dynlib)"
-//  Project: "Rebol 3 Interpreter and Run-time (Ren-C branch)"
-//  Homepage: https://github.com/metaeducation/ren-c/
+//  file: %sys-library.h
+//  summary: "Definitions for LIBRARY! (DLL, .so, .dynlib)"
+//  project: "Rebol 3 Interpreter and Run-time (Ren-C branch)"
+//  homepage: https://github.com/metaeducation/ren-c/
 //
 //=////////////////////////////////////////////////////////////////////////=//
 //
