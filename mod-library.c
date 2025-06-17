@@ -91,7 +91,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
     Mold_Or_Form_Element(mo, Library_File(lib), false);
     Append_Ascii(mo->string, "]");
 
-    return NOTHING;
+    return TRIPWIRE;
 }
 
 
@@ -195,7 +195,7 @@ extern RebolApiTable g_librebol;
 //
 //  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
 //
-//      return: [~null~ any-value?]
+//      return: [null? any-value?]
 //      library [library!]
 //      linkname [text!]
 //  ]
@@ -240,14 +240,14 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
 //
 //  "Startup LIBRARY! Extension"
 //
-//      return: [~]
+//      return: []
 //  ]
 //
 DECLARE_NATIVE(STARTUP_P)
 {
     INCLUDE_PARAMS_OF_STARTUP_P;
 
-    return NOTHING;
+    return TRIPWIRE;
 }
 
 
@@ -256,12 +256,12 @@ DECLARE_NATIVE(STARTUP_P)
 //
 //  "Shutdown LIBRARY! Extension"
 //
-//      return: [~]
+//      return: []
 //  ]
 //
 DECLARE_NATIVE(SHUTDOWN_P)
 {
     INCLUDE_PARAMS_OF_SHUTDOWN_P;
 
-    return NOTHING;
+    return TRIPWIRE;
 }
