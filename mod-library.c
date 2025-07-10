@@ -37,21 +37,22 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
     UNUSED(ARG(TYPE));
 
     if (not Is_File(ARG(DEF)))
-        return PANIC(PARAM(DEF));
+        panic (PARAM(DEF));
 
     Element* file = Element_ARG(DEF);
 
     FileDescriptor fd;
     Option(Error*) e = Trap_Open_File_Descriptor_For_Library(&fd, file);
     if (e)
-        return FAIL(unwrap e);
+        return fail (unwrap e);
 
-    Library* library = cast(Library*, Prep_Stub(
-        FLAG_FLAVOR(CELLS)
-            | NODE_FLAG_MANAGED
-            | (not STUB_FLAG_LINK_NODE_NEEDS_MARK)  // width, integer
-            | (not STUB_FLAG_MISC_NODE_NEEDS_MARK)  // height, integer
-            | (not STUB_FLAG_INFO_NODE_NEEDS_MARK),  // info, not used ATM
+    require (
+      Library* library = nocast Prep_Stub(
+        FLAG_FLAVOR(FLAVOR_CELLS)
+            | BASE_FLAG_MANAGED
+            | (not STUB_FLAG_LINK_NEEDS_MARK)  // width, integer
+            | (not STUB_FLAG_MISC_NEEDS_MARK)  // height, integer
+            | (not STUB_FLAG_INFO_NEEDS_MARK),  // info, not used ATM
         Alloc_Stub()
     ));
     Copy_Cell(Force_Erase_Cell(Stub_Cell(library)), file);  // save it [1]
@@ -62,11 +63,11 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
     Reset_Extended_Cell_Header_Noquote(
         OUT,
         EXTRA_HEART_LIBRARY,
-        (not CELL_FLAG_DONT_MARK_NODE1)  // library stub needs mark
-            | CELL_FLAG_DONT_MARK_NODE2  // second slot not used ATM
+        (not CELL_FLAG_DONT_MARK_PAYLOAD_1)  // library stub needs mark
+            | CELL_FLAG_DONT_MARK_PAYLOAD_2  // second slot not used ATM
     );
 
-    CELL_NODE1(OUT) = library;
+    CELL_PAYLOAD_1(OUT) = library;
 
     return OUT;
 }
@@ -76,7 +77,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
 {
     INCLUDE_PARAMS_OF_MOLDIFY;
 
-    Element* v = Element_ARG(ELEMENT);
+    Element* v = Element_ARG(VALUE);
     assert(Is_Library(v));
 
     Molder* mo = Cell_Handle_Pointer(Molder, ARG(MOLDER));
@@ -86,8 +87,11 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
 
     Library* lib = Cell_Library(v);
     Begin_Non_Lexical_Mold(mo, v);
-    if (Is_Library_Closed(lib))
-        Append_Ascii(mo->string, "{closed} ");
+    if (Is_Library_Closed(lib)) {
+        require (
+          Append_Ascii(mo->strand, "{closed} ")
+        );
+    }
     Mold_Or_Form_Element(mo, Library_File(lib), false);
     End_Non_Lexical_Mold(mo);
 
@@ -102,17 +106,17 @@ IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
     Element* library = Element_ARG(LOCATION);
     Library* lib = Cell_Library(library);
 
-    Value* picker = Element_ARG(PICKER);
+    Value* picker = ARG(PICKER);
 
     if (not Is_Text(picker) and not Is_Word(picker))
-        return PANIC(PARAM(PICKER));
+        panic (PARAM(PICKER));
 
     Value* dual = ARG(DUAL);
     if (Not_Lifted(dual)) {
         if (Is_Dual_Nulled_Pick_Signal(dual))
             goto handle_pick;
 
-        return PANIC(Error_Bad_Poke_Dual_Raw(dual));
+        panic (Error_Bad_Poke_Dual_Raw(dual));
     }
 
     goto handle_poke;
@@ -145,7 +149,7 @@ IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
   //    if it's another unexpected condition.  But we only have a heuristic
   //    (at least on POSIX).
 
-    const char* funcname = cs_cast(Cell_Utf8_At(picker));
+    const char* funcname = s_cast(Cell_Utf8_At(picker));
 
     CFunction* cfunc;
     Option(Error*) e = Trap_Find_Function_In_Library(&cfunc, lib, funcname);
@@ -168,7 +172,7 @@ IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
 
 } handle_poke: { /////////////////////////////////////////////////////////////
 
-    return PANIC("Cannot modify a LIBRARY! (immutable)");
+    panic ("Cannot modify a LIBRARY! (immutable)");
 }}
 
 
@@ -176,7 +180,7 @@ IMPLEMENT_GENERIC(OPEN_Q, Is_Library)
 {
     INCLUDE_PARAMS_OF_OPEN_Q;
 
-    Element* library = Element_ARG(ELEMENT);
+    Element* library = Element_ARG(VALUE);
     Library* lib = Cell_Library(library);
 
     return rebLogic(Library_Fd(lib) != nullptr);
@@ -198,7 +202,7 @@ IMPLEMENT_GENERIC(CLOSE, Is_Library)
     Option(Error*) e = Trap_Close_Library(lib);
     Cell_Library(library)->link.p = nullptr;
     if (e)
-        return PANIC(unwrap e);  // unexpected failure: PANIC, don't FAIL
+        panic (unwrap e);  // unexpected failure: PANIC, don't FAIL
 
     return COPY(library);
 }
@@ -211,7 +215,7 @@ extern RebolApiTable g_librebol;
 //
 //  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
 //
-//      return: [null? any-value?]
+//      return: [null? any-stable?]
 //      library [library!]
 //      linkname [text!]
 //  ]
@@ -240,10 +244,10 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
     Option(Error*) e = Trap_Find_Function_In_Library(
         &cfunc,
         Cell_Library(ARG(LIBRARY)),
-        cs_cast(String_Head(Cell_String(ARG(LINKNAME))))
+        s_cast(Strand_Head(Cell_Strand(ARG(LINKNAME))))
     );
     if (e)
-        return FAIL(unwrap e);  // FAIL allows defuse with TRY
+        return fail (unwrap e);  // FAIL allows defuse with TRY
 
     ExtensionCollator* collator = f_cast(ExtensionCollator*, cfunc);
 

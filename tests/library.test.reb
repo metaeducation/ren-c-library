@@ -1,3 +1,3 @@
-; %library.test.reb
+; %library.test.r
 
 (datatype? library!)

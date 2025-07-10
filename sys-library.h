@@ -36,7 +36,7 @@ INLINE FileDescriptor Library_Fd(const Library *lib)
   { return lib->link.p; }
 
 INLINE const Element* Library_File(const Library *lib)
-  { return c_cast(Element*, Stub_Cell(lib)); }
+  { return cast(Element*, Stub_Cell(lib)); }
 
 
 INLINE bool Is_Library_Closed(const Library* lib)
@@ -44,7 +44,7 @@ INLINE bool Is_Library_Closed(const Library* lib)
 
 INLINE Library* Cell_Library(const Cell* v) {
     assert(Is_Library(v));
-    return cast(Array*, CELL_NODE1(v));
+    return cast(Array*, CELL_PAYLOAD_1(v));
 }
 
 #define Cell_Library_Fd(v) \
