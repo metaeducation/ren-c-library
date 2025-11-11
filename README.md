@@ -24,7 +24,7 @@ instance, if you chose to build the UUID extension as dynamically loadable,
 LIBRARY! provides the foundation for LOAD-EXTENSION in that case:
 
     mod-uuid: load-extension join what-dir %build/libr3-uuid.so
-    uuid: mod-uuid.generate
+    uuid: mod-uuid/generate
     assert [16 = length of uuid]
 
 

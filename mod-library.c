@@ -47,7 +47,7 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
         return fail (unwrap e);
 
     require (
-      Library* library = nocast Prep_Stub(
+      Library* library = u_downcast Prep_Stub(
         FLAG_FLAVOR(FLAVOR_CELLS)
             | BASE_FLAG_MANAGED
             | (not STUB_FLAG_LINK_NEEDS_MARK)  // width, integer
