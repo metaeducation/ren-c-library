@@ -95,7 +95,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
     Mold_Or_Form_Element(mo, Library_File(lib), false);
     End_Non_Lexical_Mold(mo);
 
-    return TRIPWIRE;
+    return TRASH;
 }
 
 
@@ -260,14 +260,14 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
 //
 //  "Startup LIBRARY! Extension"
 //
-//      return: []
+//      return: ~
 //  ]
 //
 DECLARE_NATIVE(STARTUP_P)
 {
     INCLUDE_PARAMS_OF_STARTUP_P;
 
-    return TRIPWIRE;
+    return TRASH;
 }
 
 
@@ -276,12 +276,12 @@ DECLARE_NATIVE(STARTUP_P)
 //
 //  "Shutdown LIBRARY! Extension"
 //
-//      return: []
+//      return: ~
 //  ]
 //
 DECLARE_NATIVE(SHUTDOWN_P)
 {
     INCLUDE_PARAMS_OF_SHUTDOWN_P;
 
-    return TRIPWIRE;
+    return TRASH;
 }
