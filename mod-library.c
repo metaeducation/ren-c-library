@@ -215,7 +215,7 @@ extern RebolApiTable g_librebol;
 //
 //  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
 //
-//      return: [null? any-stable?]
+//      return: [<null> any-stable?]
 //      library [library!]
 //      linkname [text!]
 //  ]
