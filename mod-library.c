@@ -106,12 +106,12 @@ IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
     Element* library = Element_ARG(LOCATION);
     Library* lib = Cell_Library(library);
 
-    Value* picker = ARG(PICKER);
+    Stable* picker = ARG(PICKER);
 
     if (not Is_Text(picker) and not Is_Word(picker))
         panic (PARAM(PICKER));
 
-    Value* dual = ARG(DUAL);
+    Stable* dual = ARG(DUAL);
     if (Not_Lifted(dual)) {
         if (Is_Dual_Nulled_Pick_Signal(dual))
             goto handle_pick;
