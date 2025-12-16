@@ -81,7 +81,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
     assert(Is_Library(v));
 
     Molder* mo = Cell_Handle_Pointer(Molder, ARG(MOLDER));
-    bool form = Bool_ARG(FORM);
+    bool form = did ARG(FORM);
 
     UNUSED(form);
 
