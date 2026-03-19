@@ -69,7 +69,7 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
 
     CELL_PAYLOAD_1(OUT) = library;
 
-    return OUT;
+    return BOUNCE_OUT;
 }
 
 
@@ -95,7 +95,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
     Mold_Or_Form_Element(mo, Library_File(lib), false);
     End_Non_Lexical_Mold(mo);
 
-    return TRASH;
+    return TRASH_OUT;
 }
 
 
@@ -206,7 +206,7 @@ IMPLEMENT_GENERIC(CLOSE, Is_Library)
     if (e)
         panic (unwrap e);  // unexpected failure: PANIC, don't FAIL
 
-    return COPY(library);
+    return COPY_TO_OUT(library);
 }
 
 
@@ -217,7 +217,7 @@ extern RebolApiTable g_librebol;
 //
 //  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
 //
-//      return: [<null> any-stable?]
+//      return: [any-stable?]
 //      library [library!]
 //      linkname [text!]
 //  ]
@@ -269,7 +269,7 @@ DECLARE_NATIVE(STARTUP_P)
 {
     INCLUDE_PARAMS_OF_STARTUP_P;
 
-    return TRASH;
+    return TRASH_OUT;
 }
 
 
@@ -285,5 +285,5 @@ DECLARE_NATIVE(SHUTDOWN_P)
 {
     INCLUDE_PARAMS_OF_SHUTDOWN_P;
 
-    return TRASH;
+    return TRASH_OUT;
 }
