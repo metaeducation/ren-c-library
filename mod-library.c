@@ -34,12 +34,12 @@
 IMPLEMENT_GENERIC(MAKE, Is_Library)
 {
     INCLUDE_PARAMS_OF_MAKE;
-    UNUSED(ARG(TYPE));
+    UNUSED(PARAM(TYPE));
 
     if (not Is_File(ARG(DEF)))
         panic (PARAM(DEF));
 
-    Element* file = Element_ARG(DEF);
+    Element* file = ARG(DEF);
 
     FileDescriptor fd;
     Option(Error*) e = Trap_Open_File_Descriptor_For_Library(&fd, file);
@@ -81,7 +81,7 @@ IMPLEMENT_GENERIC(MOLDIFY, Is_Library)
     assert(Is_Library(v));
 
     Molder* mo = Cell_Handle_Pointer(Molder, ARG(MOLDER));
-    bool form = did ARG(FORM);
+    bool form = ARG(FORM);
 
     UNUSED(form);
 
