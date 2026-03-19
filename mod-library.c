@@ -113,7 +113,7 @@ IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
 
     Stable* dual = ARG(DUAL);
     if (Not_Lifted(dual)) {
-        if (Is_Dual_Nulled_Pick_Signal(dual))
+        if (Is_Null_Signifying_Tweak_Is_Pick(dual))
             goto handle_pick;
 
         panic (Error_Bad_Poke_Dual_Raw(dual));
@@ -153,10 +153,12 @@ IMPLEMENT_GENERIC(TWEAK_P, Is_Library)
 
     CFunction* cfunc;
     Option(Error*) e = Trap_Find_Function_In_Library(&cfunc, lib, funcname);
-    if (not e)
-        return DUAL_LIFTED(Init_Handle_Cfunc(OUT, cfunc));
+    if (not e) {
+        Init_Handle_Cfunc(OUT, cfunc);
+        return LIFT_OUT_FOR_DUAL_PICK;
+    }
 
-    Element* error = Init_Warning(SPARE, unwrap e);
+    Element* error = Init_Context_Cell(SPARE, unwrap e);
 
     return rebDelegate("any [",  // use heuristic for better error handling [1]
         "find pick", error, "'message -[could not be found]-",
