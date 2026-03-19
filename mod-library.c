@@ -211,7 +211,7 @@ IMPLEMENT_GENERIC(CLOSE, Is_Library)
 extern RebolApiTable g_librebol;
 
 //
-//  export run-library-collator: native [
+//  export /run-library-collator: native [
 //
 //  "Execute DLL function that takes RebolApiTable* and returns RebolValue*"
 //
@@ -256,7 +256,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
 
 
 //
-//  startup*: native [
+//  /startup*: native [
 //
 //  "Startup LIBRARY! Extension"
 //
@@ -272,7 +272,7 @@ DECLARE_NATIVE(STARTUP_P)
 
 
 //
-//  shutdown*: native [
+//  /shutdown*: native [
 //
 //  "Shutdown LIBRARY! Extension"
 //
