@@ -260,7 +260,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
 //
 //  "Startup LIBRARY! Extension"
 //
-//      return: ~
+//      return: [trash!]
 //  ]
 //
 DECLARE_NATIVE(STARTUP_P)
@@ -276,7 +276,7 @@ DECLARE_NATIVE(STARTUP_P)
 //
 //  "Shutdown LIBRARY! Extension"
 //
-//      return: ~
+//      return: [trash!]
 //  ]
 //
 DECLARE_NATIVE(SHUTDOWN_P)
