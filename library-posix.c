@@ -132,7 +132,7 @@ Option(Error*) Trap_Find_Function_In_Library(
     const char* error_utf8 = dlerror();  // reports ALL dlsym() errors [A]
 
     if (error_utf8 == nullptr) {
-        *u_cast(void**, cfunc) = symbol;
+        *raw_cast(void**, cfunc) = symbol;
         return SUCCESS;
     }
 
