@@ -44,7 +44,7 @@ IMPLEMENT_GENERIC(MAKE, Is_Library)
     FileDescriptor fd;
     Option(Error*) e = Trap_Open_File_Descriptor_For_Library(&fd, file);
     if (e)
-        return fail (unwrap e);
+        return_fail (unwrap e);
 
     require (
       Library* library = raw_downcast Prep_Stub(
@@ -249,7 +249,7 @@ DECLARE_NATIVE(RUN_LIBRARY_COLLATOR)
         s_cast(Strand_Head(Cell_Strand(ARG(LINKNAME))))
     );
     if (e)
-        return fail (unwrap e);  // FAIL allows defuse with TRY
+        return_fail (unwrap e);  // FAIL allows defuse with TRY
 
     ExtensionCollator* collator = f_cast(ExtensionCollator*, cfunc);
 
